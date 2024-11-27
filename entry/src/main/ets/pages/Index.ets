@@ -6,6 +6,8 @@ import { City } from '../pages/CityList';
 // import { ListPage } from './ListPage'
 import promptAction from '@ohos.promptAction';
 
+PersistentStorage.persistProp<City[]>('cityList', [])
+
 @Entry
 @Component
 struct Index {
@@ -21,7 +23,8 @@ struct Index {
   @State convertedDate: string = ''
   pathStack: NavPathStack = new NavPathStack()
   @State message: string = ''
-  @State cityList: City[] = []
+  // @State cityList: City[] = []
+  @StorageLink('cityList') cityList: City[] = []
 
   @Builder
   PagesMap(name: string) {
@@ -33,6 +36,13 @@ struct Index {
   }
 
   aboutToAppear(): void {
+    //Check list is empty or not
+    if (this.cityList[0] == null) {
+      this.isListEmpty = true
+    } else {
+      this.isListEmpty = false
+    }
+
     try {
       systemDateTime.getTimezone((error: BusinessError, data: string) => {
         if (error) {
@@ -40,7 +50,11 @@ struct Index {
           return;
         }
         this.timeZone = data;
+<<<<<<< HEAD
         // this.currentTimeZoneOffset = (this.getTimezoneOffsetByName(this.timeZone) as number) * -1
+=======
+        this.currentTimeZoneOffset = (this.getTimezoneOffsetByName(this.timeZone) as number)
+>>>>>>> 4be972bd0d7dcc9e37063067145dd13c5fc85ffc
         hilog.info(0x0000, `Succeeded in get timezone : ${data}`, '%{public}s');
       });
     } catch (e) {
@@ -105,7 +119,7 @@ struct Index {
           Column() {
             Row() {
               Column() {
-                TextClock({ timeZoneOffset: this.currentTimeZoneOffset, controller: this.controller })
+                TextClock({ timeZoneOffset: this.currentTimeZoneOffset*-1, controller: this.controller })
                   .fontSize(25)
                   .fontWeight(FontWeight.Bolder)
                 Text(`${this.timeZone}: ${this.convertedDate}`)
@@ -157,9 +171,15 @@ struct Index {
                               }
                             })
                         }
-                        Text(`${item.name}`)
-                          .fontWeight(FontWeight.Bold)
-                          .fontSize(20)
+                        Column() {
+                          Text(`${item.name}`)
+                            .fontWeight(FontWeight.Bold)
+                            .fontSize(20)
+                          Text(`${(this.currentTimeZoneOffset - item.offset) < 0 ? 'Eariler ' + Math.abs(this.currentTimeZoneOffset - item.offset) + (Math.abs(this.currentTimeZoneOffset - item.offset) > 1 ? ' hours' : ' hour') : ((this.currentTimeZoneOffset - item.offset) == 0 ? '' : 'Late ' + (this.currentTimeZoneOffset - item.offset) + (Math.abs(this.currentTimeZoneOffset - item.offset) > 1 ? ' hours' : ' hour'))} `)
+                            .fontColor('#74110f0f')
+                        }
+                        .alignItems(HorizontalAlign.Start)
+
                         TextClock({ timeZoneOffset: item.offset * -1, controller: this.controller })
                           .layoutWeight(1)
                           .align(Alignment.End)
@@ -180,7 +200,7 @@ struct Index {
               top: 40
             })
           }
-          .backgroundColor(Color.Blue)
+          .backgroundColor(Color.Pink)
           .width('90%')
           .height('45%')
         }
