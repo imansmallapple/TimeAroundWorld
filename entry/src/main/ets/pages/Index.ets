@@ -2,8 +2,8 @@ import { BusinessError } from '@ohos.base';
 import systemDateTime from '@ohos.systemDateTime';
 import hilog from '@ohos.hilog';
 import { timestampToDate } from '../Utils/timeUtils'
-import { City, supportedSystemTimezone } from '../Data/DataSource';
-import { ListPage } from './ListPage'
+import { City } from '../pages/CityList';
+// import { ListPage } from './ListPage'
 import promptAction from '@ohos.promptAction';
 
 @Entry
@@ -28,7 +28,7 @@ struct Index {
     if (name == 'Index') {
       Index()
     } else if (name == 'ListPage') {
-      ListPage()
+      // ListPage()
     }
   }
 
@@ -40,7 +40,7 @@ struct Index {
           return;
         }
         this.timeZone = data;
-        this.currentTimeZoneOffset = (this.getTimezoneOffsetByName(this.timeZone) as number) * -1
+        // this.currentTimeZoneOffset = (this.getTimezoneOffsetByName(this.timeZone) as number) * -1
         hilog.info(0x0000, `Succeeded in get timezone : ${data}`, '%{public}s');
       });
     } catch (e) {
@@ -81,14 +81,14 @@ struct Index {
     }
   }
 
-  getTimezoneOffsetByName(systemTimeZone: string): number | null {
-    // Find the matching city based on the name
-    let name = this.extractRegion(systemTimeZone)
-    const city = supportedSystemTimezone.find(city => city.name === name);
-
-    // Return the offset if found, or null if not found
-    return city ? city.offset : null;
-  }
+  // getTimezoneOffsetByName(systemTimeZone: string): number | null {
+  //   // Find the matching city based on the name
+  //   let name = this.extractRegion(systemTimeZone)
+  //   // const city = supportedSystemTimezone.find(city => city.name === name);
+  //
+  //   // Return the offset if found, or null if not found
+  //   // return city ? city.offset : null;
+  // }
 
   private extractRegion(timezone: string): string | null {
     if (timezone.includes('/')) {
