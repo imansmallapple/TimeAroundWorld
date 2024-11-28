@@ -2,11 +2,13 @@ import { BusinessError } from '@ohos.base';
 import systemDateTime from '@ohos.systemDateTime';
 import hilog from '@ohos.hilog';
 import { timestampToDate } from '../Utils/timeUtils'
-import { City, supportedSystemTimezone } from '../Data/DataSource';
+import { City } from '../Data/DataSource';
 import { ListPage } from './ListPage'
 import promptAction from '@ohos.promptAction';
+import { DataSource } from '../Data/ServerDataSource'
 
 PersistentStorage.persistProp<City[]>('cityList', [])
+PersistentStorage.persistProp<string[]>('cityTimeList', [])
 
 @Entry
 @Component
@@ -25,6 +27,7 @@ struct Index {
   @State message: string = ''
   // @State cityList: City[] = []
   @StorageLink('cityList') cityList: City[] = []
+  @StorageLink('cityTimeList') cityTimeList: string[] = []
 
   @Builder
   PagesMap(name: string) {
@@ -42,6 +45,16 @@ struct Index {
     } else {
       this.isListEmpty = false
     }
+    for (let index: number = 0; index < this.cityList.length; index++) {
+      DataSource.getTimeZoneTime(this.cityList[index].timezone, (time: string) => {
+        console.log(`Time in Europe/Amsterdam: ${time}`);
+        this.cityTimeList[index] = time;
+      },
+        (err: Error) => {
+          console.error('Error fetching time for Europe/Amsterdam:', err);
+        })
+    }
+
 
     try {
       systemDateTime.getTimezone((error: BusinessError, data: string) => {
@@ -50,7 +63,7 @@ struct Index {
           return;
         }
         this.timeZone = data;
-        this.currentTimeZoneOffset = (this.getTimezoneOffsetByName(this.timeZone) as number)
+        // this.currentTimeZoneOffset = (this.getTimezoneOffsetByName(this.timeZone) as number)
         hilog.info(0x0000, `Succeeded in get timezone : ${data}`, '%{public}s');
       });
     } catch (e) {
@@ -91,14 +104,14 @@ struct Index {
     }
   }
 
-  getTimezoneOffsetByName(systemTimeZone: string): number | null {
-    // Find the matching city based on the name
-    let name = this.extractRegion(systemTimeZone)
-    const city = supportedSystemTimezone.find(city => city.name === name);
-
-    // Return the offset if found, or null if not found
-    return city ? city.offset : null;
-  }
+  // getTimezoneOffsetByName(systemTimeZone: string): number | null {
+  //   // Find the matching city based on the name
+  //   let name = this.extractRegion(systemTimeZone)
+  //   const city = this.cityList.find(city => city.name === name);
+  //
+  //   // Return the offset if found, or null if not found
+  //   return city ? city.offset : null;
+  // }
 
   private extractRegion(timezone: string): string | null {
     if (timezone.includes('/')) {
@@ -115,7 +128,7 @@ struct Index {
           Column() {
             Row() {
               Column() {
-                TextClock({ timeZoneOffset: this.currentTimeZoneOffset*-1, controller: this.controller })
+                TextClock({ timeZoneOffset: this.currentTimeZoneOffset * -1, controller: this.controller })
                   .fontSize(25)
                   .fontWeight(FontWeight.Bolder)
                 Text(`${this.timeZone}: ${this.convertedDate}`)
@@ -171,15 +184,16 @@ struct Index {
                           Text(`${item.name}`)
                             .fontWeight(FontWeight.Bold)
                             .fontSize(20)
-                          Text(`${(this.currentTimeZoneOffset - item.offset) < 0 ? 'Eariler ' + Math.abs(this.currentTimeZoneOffset - item.offset) + (Math.abs(this.currentTimeZoneOffset - item.offset) > 1 ? ' hours' : ' hour') : ((this.currentTimeZoneOffset - item.offset) == 0 ? '' : 'Late ' + (this.currentTimeZoneOffset - item.offset) + (Math.abs(this.currentTimeZoneOffset - item.offset) > 1 ? ' hours' : ' hour'))} `)
-                            .fontColor('#74110f0f')
+                          // Text(`${(this.currentTimeZoneOffset - item.offset) < 0 ? 'Eariler ' + Math.abs(this.currentTimeZoneOffset - item.offset) + (Math.abs(this.currentTimeZoneOffset - item.offset) > 1 ? ' hours' : ' hour') : ((this.currentTimeZoneOffset - item.offset) == 0 ? '' : 'Late ' + (this.currentTimeZoneOffset - item.offset) + (Math.abs(this.currentTimeZoneOffset - item.offset) > 1 ? ' hours' : ' hour'))} `)
+                          //   .fontColor('#74110f0f')
                         }
                         .alignItems(HorizontalAlign.Start)
 
-                        TextClock({ timeZoneOffset: item.offset * -1, controller: this.controller })
-                          .layoutWeight(1)
-                          .align(Alignment.End)
-                          .margin(10)
+                        // TextClock({ timeZoneOffset: item.offset * -1, controller: this.controller })
+                        //   .layoutWeight(1)
+                        //   .align(Alignment.End)
+                        //   .margin(10)
+                        Text(`${this.cityTimeList[index] == undefined ? "Loading..." : this.cityTimeList[index]}`)
                       }
                       .height(70)
                       .margin({

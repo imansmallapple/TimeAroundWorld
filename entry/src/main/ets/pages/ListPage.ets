@@ -1,6 +1,7 @@
-import { MyDataSource, City, supportedSystemTimezone } from '../Data/DataSource'
+import { MyDataSource, City } from '../Data/DataSource'
 import hilog from '@ohos.hilog';
 import promptAction from '@ohos.promptAction';
+import { DataSource } from '../data/ServerDataSource';
 
 PersistentStorage.persistProp<string[]>('selectedCities', [])
 
@@ -11,7 +12,7 @@ export struct ListPage {
   // 创建数据源 上面的例子对其初始化过了
   @State dataSet: MyDataSource = new MyDataSource()
   @State filteredCities: City[] = []
-  @State unfilteredCities: City[] = supportedSystemTimezone
+  @State unfilteredCities: City[] = []
   //For search bar
   @State changeValue: string = ''
   @State isFiltered: boolean = false
@@ -22,9 +23,40 @@ export struct ListPage {
   private alphabets: string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
   @State private selectedIndex: number = 0
   @StorageLink('selectedCities') selectedCities: string[] = []
+  @State httpCode: number = 0 // 定义一个状态变量用于保存 HTTP 响应码
+  @StorageLink('cityTimeList') cityTimeList: string[] = []
+  @StorageLink('cityList') cityList: City[] = []
+  @State offsetList: string[] = []
 
   onPageShow(): void {
     AppStorage.setOrCreate("PathStack", this.pathStack)
+  }
+
+  aboutToAppear(): void {
+    const source = new DataSource()
+    source.fetchHttpCode().then((code) => {
+      this.httpCode = code; // 更新状态变量以触发 UI 的重新渲染
+      if (code == 200) {
+        DataSource.getAllTimeZone((data: City[]) => {
+          this.unfilteredCities = data;
+          //Push data into datasource
+          for (let index = 0; index < data.length; index++) {
+            this.dataSet.pushData(data[index])
+          }
+        }, () => {
+        })
+      }
+    });
+  }
+
+  aboutToDisappear(): void {
+    for (let index: number = 0; index < this.cityList.length; index++) {
+      DataSource.getTimeZoneTime(this.cityList[index].timezone, (time: string) => {
+        this.cityTimeList[index] = time;
+      },
+        () => {
+        })
+    }
   }
 
   private mapAlphabetsIndex(): Map<string, number> {
@@ -34,11 +66,11 @@ export struct ListPage {
       const element = this.unfilteredCities[i];
       // 第一个字母直接加入 Map
       if (i === 0) {
-        mapAlphabetsIndex.set(element.headerWord, i);
+        mapAlphabetsIndex.set(element.name[0], i);
       } else {
         // 如果当前字母和前一个字母不一样，则加入 Map
-        if (element.headerWord != this.unfilteredCities[i - 1].headerWord) {
-          mapAlphabetsIndex.set(element.headerWord, i);
+        if (element.name[0] != this.unfilteredCities[i - 1].name[0]) {
+          mapAlphabetsIndex.set(element.name[0], i);
         }
       }
     }
@@ -68,7 +100,7 @@ export struct ListPage {
               }
               this.isFiltered = true
               // 搜索逻辑：过滤数据集中的城市名称
-              const filteredCity = supportedSystemTimezone.filter((city: City) => {
+              const filteredCity = this.unfilteredCities.filter((city: City) => {
                 return city.name.toLowerCase().includes(value.toLowerCase())
                   || city.timezone.toLowerCase().includes(value.toLowerCase())
               });
@@ -77,7 +109,7 @@ export struct ListPage {
             .onSubmit((value: string) => {
               this.isFiltered = true
               // 搜索逻辑：过滤数据集中的城市名称
-              const filteredCity = supportedSystemTimezone.filter((city: City) => {
+              const filteredCity = this.unfilteredCities.filter((city: City) => {
                 return city.name.toLowerCase().includes(value.toLowerCase())
                   || city.timezone.toLowerCase().includes(value.toLowerCase())
               });
@@ -90,16 +122,16 @@ export struct ListPage {
           //在需要渲染的地方使用LazyForEach并传入数据源实例
           if (!this.isFiltered) {
             List({ scroller: this.scroller }) {
-              ForEach(this.unfilteredCities, (item: City, index: number) => {
+              LazyForEach(this.dataSet, (item: City, index: number) => {
                 ListItem() {
                   Column() {
                     if (index == 0) {
                       // 第一个肯定要显示
-                      Text(item.headerWord)
+                      Text(item.name[0])
                     } else {
                       // 当前字母和前一个不一样就显示
-                      if (item.headerWord != this.unfilteredCities[index-1].headerWord) {
-                        Text(item.headerWord)
+                      if (item.name[0] != this.unfilteredCities[index-1].name[0]) {
+                        Text(item.name[0])
                       }
                     }
                     if (this.selectedCities.includes(item.name)) {
@@ -108,13 +140,14 @@ export struct ListPage {
                           Text(item.name)
                             .margin(10)
                             .fontSize(20)
-                          Text(`UTC${item.offset >= 0 ? '+' + item.offset.toString()
-                            .padStart(2, '0') :
-                            '-' + Math.abs(item.offset).toString().padStart(2, '0')}:00`)
-                            .utcStyle()
+                          // Text(`UTC${item.offset >= 0 ? '+' + item.offset.toString()
+                          //   .padStart(2, '0') :
+                          //   '-' + Math.abs(item.offset).toString().padStart(2, '0')}:00`)
+                          //   .utcStyle()
                         }
                         .width(200)
                         .alignItems(HorizontalAlign.Start)
+
                         Text('√')
                       }
                       .rowStyle()
@@ -131,10 +164,10 @@ export struct ListPage {
                             .margin(10)
                             .fontSize(20)
                           //Suplement UTC with correct format
-                          Text(`UTC${item.offset >= 0 ? '+' + item.offset.toString()
-                            .padStart(2, '0') :
-                            '-' + Math.abs(item.offset).toString().padStart(2, '0')}:00`)
-                            .utcStyle()
+                          // Text(`UTC${item.offset >= 0 ? '+' + item.offset.toString()
+                          //   .padStart(2, '0') :
+                          //   '-' + Math.abs(item.offset).toString().padStart(2, '0')}:00`)
+                          //   .utcStyle()
                         }
                         .width(200)
                         .alignItems(HorizontalAlign.Start)
@@ -144,10 +177,22 @@ export struct ListPage {
                   }
                 }
                 .onClick(() => {
-                  if (!this.selectedCities.includes(item.name)) {
-                    this.selectedCities.push(item.name);
+                  //todo: logic not so correct
+                  // if (!this.selectedCities.includes(item.name)) {
+                  //   this.selectedCities.push(item.name);
+
+                    for (let index: number = 0; index < this.cityList.length; index++) {
+                      DataSource.getTimeZoneTime(this.cityList[index].timezone, (time: string) => {
+                        console.log(`Time in Europe/Amsterdam: ${time}`);
+                        this.cityTimeList[index] = time;
+                      },
+                        (err: Error) => {
+                          console.error('Error fetching time for Europe/Amsterdam:', err);
+                        })
+                    }
+
                     this.pathStack.pop(item);
-                  }
+                  // }
                 })
               })
             }
@@ -155,7 +200,7 @@ export struct ListPage {
               // 监听滑动时顶部的索引，查询对应的数据
               const element = this.unfilteredCities[start]
               // 更新选中的字母索引
-              this.selectedIndex = this.alphabets.indexOf(element.headerWord)
+              this.selectedIndex = this.alphabets.indexOf(element.name[0])
             })
           }
           else {
@@ -166,9 +211,9 @@ export struct ListPage {
                     .margin(10)
                     .fontSize(20)
 
-                  Text(item.offset.toString())
-                    .margin(10)
-                    .fontSize(20)
+                  // Text(item.offset.toString())
+                  //   .margin(10)
+                  //   .fontSize(20)
 
                 }
                 .margin(5)

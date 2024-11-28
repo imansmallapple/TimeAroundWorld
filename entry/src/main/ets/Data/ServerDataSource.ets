@@ -1,5 +1,6 @@
 import http from '@ohos.net.http';
 import { Area, TimeZoneResponse, parseTimeZone } from '../Interfaces/Area'
+import { City } from './DataSource';
 
 
 // 服务器地址
@@ -9,7 +10,8 @@ import { Area, TimeZoneResponse, parseTimeZone } from '../Interfaces/Area'
 const api_timezone: string = "https://www.timeapi.io/api/timezone/availabletimezones";
 
 class DataSource {
-  public static allCityList: Area[] = [];
+  public static allCityList: City[] = [];
+  public static allCityTime: string[] = [];
 
   static getAllTimeZone(success: Function, error?: Function) {
     let httpRequest = http.createHttp();
@@ -24,7 +26,7 @@ class DataSource {
           const name = parts[1] || parts[0];
           DataSource.allCityList.push({
             name: name,
-            timezone: item
+            timezone: item,
           });
         });
         // 调用成功回调函数
@@ -62,6 +64,43 @@ class DataSource {
         if (error) error(err as Error);
       }
     });
+  }
+
+  static getTimeZoneInfo(
+    timezone: string,
+    success: (info: TimeZoneResponse) => void,
+    error?: (err: Error) => void
+  ) {
+    // Create the HTTP request object
+    let httpRequest = http.createHttp();
+
+    // Build the API URL
+    const api_timezone_info: string = `https://www.timeapi.io/api/timezone/zone?timeZone=${encodeURIComponent(
+      timezone
+    )}`;
+
+    // Send the HTTP GET request
+    httpRequest.request(
+      api_timezone_info,
+      { method: http.RequestMethod.GET },
+      (err, data) => {
+        if (!err && data.responseCode === 200) {
+          try {
+            // Parse the JSON response into the TimeZoneResponse type
+            const response: TimeZoneResponse = JSON.parse(data.result as string);
+
+            // Call the success callback with the parsed response
+            success(response);
+          } catch (parseError) {
+            console.error("Error parsing response:", parseError);
+            if (error) error(parseError as Error);
+          }
+        } else {
+          console.error("HTTP request failed:", err);
+          if (error) error(err as Error);
+        }
+      }
+    );
   }
 
   async fetchHttpCode(): Promise<number> {

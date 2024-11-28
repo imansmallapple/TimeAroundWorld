@@ -1,5 +1,6 @@
+import { City } from '../Data/DataSource';
 import { DataSource } from '../data/ServerDataSource';
-import { Area } from '../Interfaces/Area'
+import { TimeZoneResponse } from '../Interfaces/Area'
 
 @Entry
 @Component
@@ -7,26 +8,38 @@ struct CityList {
   @State message: string = 'Hello World';
   @State httpCode: number = 0 // 定义一个状态变量用于保存 HTTP 响应码
   @State isHttpError: boolean = false
-  @State allCityList: Area[] = [];
+  @State allCityList: City[] = [];
   @State cityTime: string = ''
+  @State offsetList: string[] = []
 
   aboutToAppear(): void {
     const source = new DataSource()
     source.fetchHttpCode().then((code) => {
       this.httpCode = code; // 更新状态变量以触发 UI 的重新渲染
       if (code == 200) {
-        DataSource.getAllTimeZone((data: Area[]) => {
+        DataSource.getAllTimeZone((data: City[]) => {
           this.allCityList = data;
         }, () => {
         })
 
-        DataSource.getTimeZoneTime('Europe/Amsterdam',(time: string) => {
+        DataSource.getTimeZoneTime('Europe/Amsterdam', (time: string) => {
           console.log(`Time in Europe/Amsterdam: ${time}`);
           this.cityTime = time;
         },
           (err: Error) => {
             console.error('Error fetching time for Europe/Amsterdam:', err);
           })
+
+        DataSource.getTimeZoneInfo(
+          "Europe/Amsterdam",
+          (info) => {
+            console.log("Time Zone Info:", info);
+            console.log("Current Local Time:", info.year);
+          },
+          (err) => {
+            console.error("Failed to fetch time zone info:", err);
+          }
+        );
       }
     });
   }
@@ -48,11 +61,11 @@ struct CityList {
       Scroll() {
         Column() {
           List({ space: 0, initialIndex: 0 }) {
-            ForEach(this.allCityList, (item: Area) => {
+            ForEach(this.allCityList, (item: City) => {
               ListItem() {
                 Text(`Timezone:${item.timezone}`)
               }
-            }, (item: Area, index) => index + JSON.stringify(item))
+            }, (item: City, index) => index + JSON.stringify(item))
           }
           .width('auto')
           .height('auto')
